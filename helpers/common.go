@@ -1,7 +1,6 @@
-package commands
+package helpers
 
 import (
-	"fmt"
 	"net"
 	"time"
 
@@ -27,18 +26,18 @@ func getConnection(address string) pooled.Conn {
 	n, err := conn.Write(cmd)
 	switch {
 	case err != nil:
-		log.L.Debugf("There was an error sending the ESC/VP.net command: %v", err)
+		log.L.Warnf("There was an error sending the ESC/VP.net command: %v", err)
 		return nil
 	case n != len(cmd):
-		fmt.Printf("only sent %v/%v bytes\n", n, len(cmd))
+		log.L.Warnf("only sent %v/%v bytes\n", n, len(cmd))
 		return nil
 	}
 
 	bytes, err := conn.ReadUntil(' ', 5*time.Second)
 	if err != nil {
-		log.L.Debugf("There was an error after sending the ESC/VP.net command: %v", err)
+		log.L.Warnf("There was an error after sending the ESC/VP.net command: %v", err)
 		return nil
 	}
-
+	log.L.Infof("Bytes returned: %s", bytes)
 	return conn
 }

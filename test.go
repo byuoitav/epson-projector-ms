@@ -10,7 +10,7 @@ import (
 	"github.com/byuoitav/common/pooled"
 )
 
-func main() {
+func init() {
 	netConn, err := net.Dial("tcp", "10.5.34.44:3629")
 	if err != nil {
 		fmt.Println(err)
@@ -72,7 +72,7 @@ func main() {
 	}
 	bytes, err = conn.ReadUntil(':', 5*time.Second)
 	if err != nil {
-		fmt.Println("there was an errror %v", err)
+		fmt.Printf("there was an errror %v\n", err)
 		return
 	}
 	// if word == "VOL?" {
