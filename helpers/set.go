@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/byuoitav/common/log"
+	"github.com/byuoitav/common/pooled"
 	"github.com/byuoitav/common/status"
 )
 
@@ -15,43 +16,40 @@ func SetPower(address string, power status.Power) error {
 	case "standby":
 		power.Power = "off"
 	}
+	work := func(conn pooled.Conn) error {
+		var cmd []byte
 
-	conn := getConnection(address)
+		switch power.Power {
+		case "on":
+			cmd = []byte("PWR ON")
+		case "off":
+			cmd = []byte("PWR OFF")
+		default:
+			return fmt.Errorf("unexpected power state: %v", power.Power)
+		}
+		cmd = append(cmd, 0x0d)
 
-	var cmd []byte
+		checker, err := writeAndRead(conn, cmd, 5*time.Second, ':')
+		if err != nil {
+			return fmt.Errorf("There was an error setting the power status: %v", err)
+		}
 
-	switch power.Power {
-	case "on":
-		cmd = []byte("PWR ON")
-	case "off":
-		cmd = []byte("PWR OFF")
-	default:
-		return fmt.Errorf("unexpected power state: %v", power.Power)
+		bytes := fmt.Sprintf("%x", checker)
+
+		if bytes != "003a" {
+			return fmt.Errorf("There was an error executing the command - %s", bytes)
+		}
+
+		conn.Log().Infof("Power state changed: %v", power.Power)
+		return nil
 	}
-	cmd = append(cmd, 0x0d)
-	n, err := conn.Write(cmd)
-	switch {
-	case err != nil:
-		log.L.Warnf("There was an error setting power status: %v", err)
-		return err
-	case n != len(cmd):
-		log.L.Warnf("Error setting power status: only sent %v/%v bytes\n", n, len(cmd))
-		return err
-	}
-	bytes, err := conn.ReadUntil(':', 5*time.Second)
+
+	err := pool.Do(address, work)
 	if err != nil {
-		log.L.Warnf("Error reading the response: %v", err)
 		return err
 	}
 
-	checker := fmt.Sprintf("%x", bytes)
-
-	if checker != "003a" {
-		return fmt.Errorf("There was an error executing the command - %s", bytes)
-	}
-
-	//wanna return powering on or something probably
-	log.L.Infof("Power state changed: %v", power.Power)
+	//TODO is the sleep still necessary???
 	time.Sleep(25 * time.Second)
 	return nil
 }
@@ -82,109 +80,103 @@ func SetInput(address string, input status.Input) error {
 		return fmt.Errorf("unknown source input '%s'", input.Input)
 	}
 
-	conn := getConnection(address)
+	work := func(conn pooled.Conn) error {
 
-	cmd := []byte(fmt.Sprintf("SOURCE %s", str))
-	cmd = append(cmd, 0x0d)
-	n, err := conn.Write(cmd)
-	switch {
-	case err != nil:
-		log.L.Warnf("there was an error setting input: %v", err)
-		return err
-	case n != len(cmd):
-		log.L.Warnf("error setting input: only sent %v/%v bytes\n", n, len(cmd))
-		return err
+		cmd := []byte(fmt.Sprintf("SOURCE %s", str))
+		cmd = append(cmd, 0x0d)
+		checker, err := writeAndRead(conn, cmd, 5*time.Second, ':')
+		if err != nil {
+			return fmt.Errorf("There was an error setting the input: %v", err)
+		}
+
+		bytes := fmt.Sprintf("%x", checker)
+
+		if bytes != "003a" {
+			return fmt.Errorf("There was an error executing the command - %s", bytes)
+		}
+
+		conn.Log().Infof("input changed: %v", input.Input)
+		return nil
 	}
-	bytes, err := conn.ReadUntil(':', 5*time.Second)
+
+	err := pool.Do(address, work)
 	if err != nil {
-		log.L.Warnf("error reading the response: %v", err)
 		return err
 	}
 
-	checker := fmt.Sprintf("%x", bytes)
-
-	if checker != "003a" {
-		return fmt.Errorf("there was an error executing the command - %s", bytes)
-	}
-
-	log.L.Infof("input changed: %v", input.Input)
+	//TODO remove?
 	time.Sleep(25 * time.Second)
 	return nil
 }
 
 // SetVolume sets the volume on an epson projector
 func SetVolume(address string, volume status.Volume) error {
-	conn := getConnection(address)
+	work := func(conn pooled.Conn) error {
 
-	word := "VOL "
-	bigVolume := volume.Volume*12 + 3
-	newVolume := strconv.Itoa(bigVolume)
-	word += newVolume
-	cmd := []byte(word)
-	cmd = append(cmd, 0x0d)
-	n, err := conn.Write(cmd)
-	switch {
-	case err != nil:
-		log.L.Warnf("There was an error getting power status: %v", err)
-		return err
-	case n != len(cmd):
-		log.L.Warnf("Error gettng power status: only sent %v/%v bytes\n", n, len(cmd))
-		return err
+		word := "VOL "
+		bigVolume := volume.Volume*12 + 3
+		newVolume := strconv.Itoa(bigVolume)
+		word += newVolume
+		cmd := []byte(word)
+		cmd = append(cmd, 0x0d)
+		checker, err := writeAndRead(conn, cmd, 5*time.Second, ':')
+		if err != nil {
+			return fmt.Errorf("There was an error setting the volume: %v", err)
+		}
+
+		bytes := fmt.Sprintf("%x", checker)
+
+		if bytes != "003a" {
+			return fmt.Errorf("There was an error executing the command - %s", bytes)
+		}
+
+		conn.Log().Infof("Volume set to %d", volume.Volume)
+		return nil
+
 	}
-	bytes, err := conn.ReadUntil(':', 5*time.Second)
+
+	err := pool.Do(address, work)
 	if err != nil {
-		log.L.Warnf("Error reading the response: %v", err)
 		return err
 	}
-
-	checker := fmt.Sprintf("%x", bytes)
-
-	if checker != "003a" {
-		return fmt.Errorf("There was an error executing the command - %s", bytes)
-	}
-	log.L.Infof("Volume set to %d", volume.Volume)
 
 	return nil
 }
 
 // SetBlanked sets the blank status on an epson projector
 func SetBlanked(address string, blanked status.Blanked) error {
-	var str string
-	switch blanked.Blanked {
-	case true:
-		str = "ON"
-	case false:
-		str = "OFF"
-	default:
-		return fmt.Errorf("unexpected blank state '%v'", blanked.Blanked)
+	work := func(conn pooled.Conn) error {
+		var str string
+		switch blanked.Blanked {
+		case true:
+			str = "ON"
+		case false:
+			str = "OFF"
+		default:
+			return fmt.Errorf("unexpected blank state '%v'", blanked.Blanked)
+		}
+
+		cmd := []byte(fmt.Sprintf("MUTE %s", str))
+		cmd = append(cmd, 0x0d)
+		checker, err := writeAndRead(conn, cmd, 5*time.Second, ':')
+		if err != nil {
+			return fmt.Errorf("There was an error setting the volume: %v", err)
+		}
+
+		bytes := fmt.Sprintf("%x", checker)
+
+		if bytes != "003a" {
+			return fmt.Errorf("There was an error executing the command - %s", bytes)
+		}
+
+		return nil
 	}
 
-	conn := getConnection(address)
-
-	cmd := []byte(fmt.Sprintf("MUTE %s", str))
-	cmd = append(cmd, 0x0d)
-	n, err := conn.Write(cmd)
-	switch {
-	case err != nil:
-		log.L.Warnf("There was an error blanking the projector: %v", err)
-		return err
-	case n != len(cmd):
-		log.L.Warnf("Error blanking projector: only sent %v/%v bytes\n", n, len(cmd))
-		return err
-	}
-	bytes, err := conn.ReadUntil(':', 5*time.Second)
+	err := pool.Do(address, work)
 	if err != nil {
-		log.L.Warnf("Error reading the response: %v", err)
 		return err
 	}
 
-	checker := fmt.Sprintf("%x", bytes)
-
-	if checker != "003a" {
-		return fmt.Errorf("There was an error executing the command - %s", bytes)
-	}
-
-	//return powering off or something probably
 	log.L.Infof("blanking screen")
 	return nil
 }

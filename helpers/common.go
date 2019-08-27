@@ -1,43 +1,60 @@
 package helpers
 
 import (
+	"fmt"
 	"net"
+	"strings"
 	"time"
 
-	"github.com/byuoitav/common/pooled"
-
 	"github.com/byuoitav/common/log"
+	"github.com/byuoitav/common/pooled"
 )
 
-func getConnection(address string) pooled.Conn {
-	address += ":3629"
+var pool = pooled.NewMap(45*time.Second, 400*time.Millisecond, getConnection)
 
-	netConn, err := net.Dial("tcp", address)
-	if err != nil {
-		log.L.Debugf("There was a problem opening the connection: %v", err)
-		return nil
+func getConnection(key interface{}) (pooled.Conn, error) {
+	address, ok := key.(string)
+	if !ok {
+		return nil, fmt.Errorf("key must be a string")
 	}
 
-	conn := pooled.Wrap(netConn)
+	conn, err := net.DialTimeout("tcp", address+":3629", 10*time.Second)
+	if err != nil {
+		return nil, err
+	}
+
+	// read the NOKEY line
+	pconn := pooled.Wrap(conn)
 
 	//sending "ESC/VP.net" in order to allow other commands
 	cmd := []byte{0x45, 0x53, 0x43, 0x2F, 0x56, 0x50, 0x2E, 0x6E, 0x65, 0x74, 0x10, 0x03, 0x00, 0x00, 0x00, 0x00}
 
+	s, err := writeAndRead(pconn, cmd, 5*time.Second, ' ')
+	if err != nil {
+		log.L.Warnf("there was an error sending the ESC/VP.net command: %v", err)
+		return nil, err
+	}
+	log.L.Infof("connection string: %s\n", s)
+
+	return pconn, nil
+}
+
+func writeAndRead(conn pooled.Conn, cmd []byte, timeout time.Duration, delim byte) (string, error) {
+	conn.SetWriteDeadline(time.Now().Add(timeout))
+
 	n, err := conn.Write(cmd)
 	switch {
 	case err != nil:
-		log.L.Warnf("There was an error sending the ESC/VP.net command: %v", err)
-		return nil
+		return "", err
 	case n != len(cmd):
-		log.L.Warnf("only sent %v/%v bytes\n", n, len(cmd))
-		return nil
+		return "", fmt.Errorf("wrote %v/%v bytes of command 0x%x", n, len(cmd), cmd)
 	}
 
-	bytes, err := conn.ReadUntil(' ', 5*time.Second)
+	b, err := conn.ReadUntil(delim, timeout)
 	if err != nil {
-		log.L.Warnf("There was an error after sending the ESC/VP.net command: %v", err)
-		return nil
+		return "", err
 	}
-	log.L.Infof("Bytes returned: %s", bytes)
-	return conn
+
+	conn.Log().Debugf("Response from command: 0x%x", b)
+	return strings.TrimSpace(string(b)), nil
 }
