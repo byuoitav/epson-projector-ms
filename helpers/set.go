@@ -160,7 +160,7 @@ func SetBlanked(address string, blanked status.Blanked) error {
 		cmd = append(cmd, 0x0d)
 		checker, err := writeAndRead(conn, cmd, 5*time.Second, ':')
 		if err != nil {
-			return fmt.Errorf("There was an error setting the volume: %v", err)
+			return fmt.Errorf("There was an error setting blank status: %v", err)
 		}
 
 		bytes := fmt.Sprintf("%x", checker)
@@ -178,5 +178,52 @@ func SetBlanked(address string, blanked status.Blanked) error {
 	}
 
 	log.L.Infof("blanking screen")
+	return nil
+}
+
+// SetMuted sets the blank status on an epson projector
+func SetMuted(address string, muted status.Mute) error {
+	work := func(conn pooled.Conn) error {
+		switch muted.Muted {
+		case true:
+			cmd := []byte("VOL 0")
+			cmd = append(cmd, 0x0d)
+			checker, err := writeAndRead(conn, cmd, 5*time.Second, ':')
+			if err != nil {
+				return fmt.Errorf("There was an error muting: %v", err)
+			}
+
+			bytes := fmt.Sprintf("%x", checker)
+
+			if bytes != "003a" {
+				return fmt.Errorf("There was an error executing the command - %s", bytes)
+			}
+
+			return nil
+		case false:
+			cmd := []byte("VOL 1")
+			cmd = append(cmd, 0x0d)
+			checker, err := writeAndRead(conn, cmd, 5*time.Second, ':')
+			if err != nil {
+				return fmt.Errorf("There was an error unmuting: %v", err)
+			}
+
+			bytes := fmt.Sprintf("%x", checker)
+
+			if bytes != "003a" {
+				return fmt.Errorf("There was an error executing the command - %s", bytes)
+			}
+
+			return nil
+		default:
+			return fmt.Errorf("unexpected mute state '%v'", muted.Muted)
+		}
+	}
+
+	err := pool.Do(address, work)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }

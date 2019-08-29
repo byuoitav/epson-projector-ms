@@ -64,8 +64,6 @@ func GetVolume(ectx echo.Context) error {
 	return ectx.JSON(http.StatusOK, resp)
 }
 
-/*
-
 // GetMuted .
 func GetMuted(ectx echo.Context) error {
 	address := ectx.Param("address")
@@ -80,6 +78,7 @@ func GetMuted(ectx echo.Context) error {
 	return ectx.JSON(http.StatusOK, resp)
 }
 
+/*
 // GetHardwareInfo .
 func GetHardwareInfo(ectx echo.Context) error {
 	address := ectx.Param("address")

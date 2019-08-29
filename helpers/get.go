@@ -180,3 +180,34 @@ func GetBlanked(address string) (status.Blanked, error) {
 
 	return blanked, nil
 }
+
+// GetMuted .
+func GetMuted(address string) (status.Mute, error) {
+	var muted status.Mute
+
+	work := func(conn pooled.Conn) error {
+
+		cmd := []byte("VOL?")
+		cmd = append(cmd, 0x0d)
+		checker, err := writeAndRead(conn, cmd, 5*time.Second, ':')
+		if err != nil {
+			return fmt.Errorf("There was an error getting the volume: %v", err)
+		}
+		checker = strings.Split(checker, "=")[1]
+		checker = strings.Split(checker, "\r")[0]
+
+		num, err := strconv.Atoi(checker)
+		if err != nil {
+			log.L.Warnf("Error converting to int %v\n", err)
+		}
+		muted.Muted = (num == 0)
+		return nil
+	}
+
+	err := pool.Do(address, work)
+	if err != nil {
+		return muted, err
+	}
+
+	return muted, nil
+}

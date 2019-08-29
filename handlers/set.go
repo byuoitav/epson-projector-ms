@@ -83,7 +83,6 @@ func SetVolume(ectx echo.Context) error {
 	return ectx.JSON(http.StatusOK, volume)
 }
 
-/*
 // SetMuted .
 func SetMuted(ectx echo.Context) error {
 	address := ectx.Param("address")
@@ -100,4 +99,3 @@ func SetMuted(ectx echo.Context) error {
 
 	return ectx.JSON(http.StatusOK, state)
 }
-*/

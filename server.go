@@ -16,7 +16,7 @@ func main() {
 	read.GET("/:address/power", handlers.GetPower)
 	read.GET("/:address/blanked", handlers.GetBlanked)
 	read.GET("/:address/input", handlers.GetInput)
-	//	read.GET("/:address/muted", handlers.GetMuted)
+	read.GET("/:address/muted", handlers.GetMuted)
 	read.GET("/:address/volume", handlers.GetVolume)
 	//	read.GET("/:address/hardware", handlers.GetHardwareInfo)
 	//	read.GET("/:address/activesignal", handlers.GetActiveSignal)
@@ -25,8 +25,8 @@ func main() {
 	write.GET("/:address/power/:state", handlers.SetPower)     // 'on' or 'standby'
 	write.GET("/:address/blanked/:state", handlers.SetBlanked) // 'blank' or 'unblank'
 	write.GET("/:address/input/:port", handlers.SetInput)      // one of the epson ports
-	//	write.GET("/:address/muted/:state", handlers.SetMuted)     // 'mute' or 'unmute'
-	write.GET("/:address/volume/:level", handlers.SetVolume) // 1-100
+	write.GET("/:address/muted/:state", handlers.SetMuted)     // 'mute' or 'unmute'
+	write.GET("/:address/volume/:level", handlers.SetVolume)   // 1-100
 
 	server := http.Server{
 		Addr:           port,
