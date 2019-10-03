@@ -10,6 +10,8 @@ import (
 	"github.com/byuoitav/common/status"
 )
 
+var currentVolume int
+
 // SetPower sets the power for an epson projector
 func SetPower(address string, power status.Power) error {
 	switch power.Power {
@@ -36,7 +38,7 @@ func SetPower(address string, power status.Power) error {
 
 		bytes := fmt.Sprintf("%x", checker)
 
-		if bytes != "003a" {
+		if bytes != "3a" {
 			return fmt.Errorf("There was an error executing the command - %s", bytes)
 		}
 
@@ -91,7 +93,7 @@ func SetInput(address string, input status.Input) error {
 
 		bytes := fmt.Sprintf("%x", checker)
 
-		if bytes != "003a" {
+		if bytes != "3a" {
 			return fmt.Errorf("There was an error executing the command - %s", bytes)
 		}
 
@@ -126,11 +128,12 @@ func SetVolume(address string, volume status.Volume) error {
 
 		bytes := fmt.Sprintf("%x", checker)
 
-		if bytes != "003a" {
+		if bytes != "3a" {
 			return fmt.Errorf("There was an error executing the command - %s", bytes)
 		}
 
 		conn.Log().Infof("Volume set to %d", volume.Volume)
+		currentVolume = volume.Volume
 		return nil
 
 	}
@@ -165,7 +168,7 @@ func SetBlanked(address string, blanked status.Blanked) error {
 
 		bytes := fmt.Sprintf("%x", checker)
 
-		if bytes != "003a" {
+		if bytes != "3a" {
 			return fmt.Errorf("There was an error executing the command - %s", bytes)
 		}
 
@@ -181,7 +184,7 @@ func SetBlanked(address string, blanked status.Blanked) error {
 	return nil
 }
 
-// SetMuted sets the blank status on an epson projector
+// SetMuted sets the mute status on an epson projector
 func SetMuted(address string, muted status.Mute) error {
 	work := func(conn pooled.Conn) error {
 		switch muted.Muted {
@@ -195,13 +198,14 @@ func SetMuted(address string, muted status.Mute) error {
 
 			bytes := fmt.Sprintf("%x", checker)
 
-			if bytes != "003a" {
+			if bytes != "3a" {
 				return fmt.Errorf("There was an error executing the command - %s", bytes)
 			}
 
 			return nil
 		case false:
-			cmd := []byte("VOL 1")
+			str := "VOL " + strconv.Itoa(currentVolume)
+			cmd := []byte(str)
 			cmd = append(cmd, 0x0d)
 			checker, err := writeAndRead(conn, cmd, 5*time.Second, ':')
 			if err != nil {
@@ -210,7 +214,7 @@ func SetMuted(address string, muted status.Mute) error {
 
 			bytes := fmt.Sprintf("%x", checker)
 
-			if bytes != "003a" {
+			if bytes != "3a" {
 				return fmt.Errorf("There was an error executing the command - %s", bytes)
 			}
 

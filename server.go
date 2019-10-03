@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/byuoitav/common"
+	"github.com/byuoitav/common/log"
 	"github.com/byuoitav/common/v2/auth"
 	"github.com/byuoitav/epson-projector-ms/handlers"
 )
@@ -11,6 +12,7 @@ import (
 func main() {
 	port := ":8069"
 	router := common.NewRouter()
+	log.SetLevel("debug")
 
 	read := router.Group("", auth.AuthorizeRequest("read-state", "room", auth.LookupResourceFromAddress))
 	read.GET("/:address/power", handlers.GetPower)

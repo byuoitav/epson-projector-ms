@@ -11,9 +11,9 @@ import (
 )
 
 func init() {
-	netConn, err := net.Dial("tcp", "10.5.34.44:3629")
+	netConn, err := net.Dial("tcp", "10.66.76.250:3629")
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println("There was an error connecting: %s", err)
 		return
 	}
 	conn := pooled.Wrap(netConn)

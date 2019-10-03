@@ -25,6 +25,9 @@ func GetPower(address string) (status.Power, error) {
 			return fmt.Errorf("There was an error getting power status: %v", err)
 		}
 
+		checker = strings.TrimSuffix(checker, "\r:")
+		log.L.Debug("This is checker " + checker)
+
 		switch checker {
 		case "PWR=00":
 			// Standby
@@ -34,16 +37,16 @@ func GetPower(address string) (status.Power, error) {
 			power.Power = "on"
 		case "PWR=02":
 			// Warming up
-			power.Power = "standby"
+			power.Power = "warming up"
 		case "PWR=03":
 			// Cooling down
-			power.Power = "standby"
+			power.Power = "cooling down"
 		case "PWR=04":
 			// Standby (network offline)
-			power.Power = "standby"
+			power.Power = "standby (network offline)"
 		case "PWR=05":
 			// Standby (abnormal)
-			power.Power = "standby"
+			power.Power = "standby (abnormal)"
 		case "PWR=09":
 			// Standby (A/V standby)
 			power.Power = "standby"
